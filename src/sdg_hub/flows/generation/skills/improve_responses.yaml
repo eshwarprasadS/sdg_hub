@@ -95,7 +95,7 @@
        Assistant A: "response"
        Assistant B: "revised_response"
     choice_col: verdict
-    output_col: chosen_reponse
+    output_col: chosen_response
     batch_kwargs:
       num_procs: 8
   drop_columns:
