@@ -5,7 +5,7 @@ name: Lint, Format, and MyPy
 on:
   push:
     branches:
-      - "main-disabled"
+      - "main"
     paths:
       - '**.py'
       - 'pyproject.toml'
@@ -15,7 +15,7 @@ on:
       - '.github/**'
   pull_request:
     branches:
-      - "main-disabled"
+      - "main"
     paths:
       - '**.py'
       - 'pyproject.toml'
@@ -52,6 +52,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox
+
+      - name: Show Ruff version and config
+        run: |
+          tox -e ruff -- --version
+          echo "Ruff configuration:"
+          grep -A 20 "\[tool.ruff\]" pyproject.toml
 
       - name: Run Ruff check
         run: |
