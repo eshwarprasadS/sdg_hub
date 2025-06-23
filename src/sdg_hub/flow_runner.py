@@ -12,6 +12,7 @@ import click
 from sdg_hub.flow import Flow
 from sdg_hub.logger_config import setup_logger
 from sdg_hub.sdg import SDG
+from sdg_hub.utils.path_resolution import resolve_path
 
 
 logger = setup_logger(__name__)
@@ -79,6 +80,8 @@ def run_flow(
         base_url=openai_api_base,
     )
 
+    # Resolve the flow path and check if it exists
+    flow_path = resolve_path(flow_path, ".")
     if not os.path.exists(flow_path):
         raise FileNotFoundError(f"Flow file not found: {flow_path}")
 

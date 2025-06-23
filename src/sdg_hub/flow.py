@@ -38,6 +38,7 @@ from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
 from .utils.config_validation import validate_prompt_config_schema
+from .utils.path_resolution import resolve_path
 from .utils.validation_result import ValidationResult
 
 logger = setup_logger(__name__)
@@ -141,15 +142,7 @@ class Flow(ABC):
         str
             Selected file path.
         """
-        if os.path.isabs(filename):
-            return filename
-        for d in dirs:
-            full_file_path = os.path.join(d, filename)
-            if os.path.isfile(full_file_path):
-                return full_file_path
-        # If not found above then return the path unchanged i.e.
-        # assume the path is relative to the current directory
-        return filename
+        return resolve_path(filename, dirs)
 
     def _drop_duplicates(self, dataset: Dataset, cols: List[str]) -> Dataset:
         """Drop duplicates from the dataset based on the columns provided.
@@ -320,9 +313,7 @@ class Flow(ABC):
         KeyError
             If a required block or prompt is not found in the registry.
         """
-        yaml_path_relative_to_base = os.path.join(self.base_path, yaml_path)
-        if os.path.isfile(yaml_path_relative_to_base):
-            yaml_path = yaml_path_relative_to_base
+        yaml_path = resolve_path(yaml_path, self.base_path)
         yaml_dir = os.path.dirname(yaml_path)
 
         try:
