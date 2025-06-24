@@ -266,7 +266,9 @@ class Flow(ABC):
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         config_data = yaml.safe_load(f)
-                        _, validation_errors = validate_prompt_config_schema(config_data, path)
+                        _, validation_errors = validate_prompt_config_schema(
+                            config_data, path
+                        )
 
                         if validation_errors:
                             errors.extend(validation_errors)
@@ -424,7 +426,11 @@ class Flow(ABC):
             config = block["block_config"]
 
             # LLM Block: parse Jinja vars
-            cls_name = block_type.__name__ if isinstance(block_type, type) else block_type.__class__.__name__
+            cls_name = (
+                block_type.__name__
+                if isinstance(block_type, type)
+                else block_type.__class__.__name__
+            )
             logger.info(f"Validating block: {name} ({cls_name})")
             if "LLM" in cls_name:
                 config_path = config.get("config_path")
@@ -436,7 +442,9 @@ class Flow(ABC):
                         vars_found = meta.find_undeclared_variables(ast)
                         for var in vars_found:
                             if var not in all_columns:
-                                errors.append(f"[{name}] Missing column for prompt var: '{var}'")
+                                errors.append(
+                                    f"[{name}] Missing column for prompt var: '{var}'"
+                                )
 
             # FilterByValueBlock
             if "FilterByValueBlock" in str(block_type):
@@ -453,13 +461,17 @@ class Flow(ABC):
                 choice_map = config.get("choice_map", {})
                 for col in choice_map.values():
                     if col not in all_columns:
-                        errors.append(f"[{name}] choice_map references missing column: '{col}'")
+                        errors.append(
+                            f"[{name}] choice_map references missing column: '{col}'"
+                        )
 
             # CombineColumnsBlock
             if "CombineColumnsBlock" in str(block_type):
                 cols = config.get("columns", [])
                 for col in cols:
                     if col not in all_columns:
-                        errors.append(f"[{name}] CombineColumnsBlock requires column: '{col}'")
+                        errors.append(
+                            f"[{name}] CombineColumnsBlock requires column: '{col}'"
+                        )
 
         return ValidationResult(valid=(len(errors) == 0), errors=errors)

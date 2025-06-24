@@ -95,7 +95,9 @@ def run_flow(
 
     generated_data = sdg.generate(ds, checkpoint_dir=checkpoint_dir)
     if dataset_end_index is not None and dataset_start_index is not None:
-        save_path = save_path.replace(".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl")
+        save_path = save_path.replace(
+            ".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl"
+        )
     generated_data.to_json(save_path, orient="records", lines=True)
     logger.info(f"Data saved to {save_path}")
 
@@ -157,8 +159,12 @@ def run_flow(
     is_flag=True,
     help="Enable debug mode with a smaller dataset subset.",
 )
-@click.option("--dataset_start_index", type=int, default=0, help="Start index of the dataset.")
-@click.option("--dataset_end_index", type=int, default=None, help="End index of the dataset.")
+@click.option(
+    "--dataset_start_index", type=int, default=0, help="Start index of the dataset."
+)
+@click.option(
+    "--dataset_end_index", type=int, default=None, help="End index of the dataset."
+)
 def main(
     ds_path: str,
     bs: int,
