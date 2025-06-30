@@ -1,4 +1,4 @@
-system: null
+system: "You are a helpful assistant that annotates text."
 introduction: "Task Description: Data Annotation"
 principles: null
 examples: null
