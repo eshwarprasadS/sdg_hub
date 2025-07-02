@@ -644,7 +644,10 @@ class PostProcessingBlock(Block):
         self.parser_name = parser_name
         self.parsing_pattern = parsing_pattern
         self.parser_cleanup_tags = parser_cleanup_tags
+        self._validate()
 
+    def _validate(self) -> None:
+        """Validate the block configuration."""
         # Validate custom parser configuration
         if self.parser_name == "custom" and self.parsing_pattern is None:
             raise ValueError("parsing_pattern must be provided when using custom parser")
