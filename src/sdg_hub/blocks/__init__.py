@@ -6,6 +6,7 @@ This package provides various block implementations for data generation, process
 # Local
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
+from .postprocessingblock import PostProcessingBlock
 from .openaichatblock import (
     OpenAIChatBlock,
     OpenAIAsyncChatBlock
@@ -29,6 +30,7 @@ __all__ = [
     "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
+    "PostProcessingBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
     "CombineColumnsBlock",
