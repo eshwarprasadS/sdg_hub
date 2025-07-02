@@ -705,7 +705,10 @@ class PostProcessingBlock(Block):
                     cleaned_matches.append(value)
                 matches[self.output_cols[0]] = cleaned_matches if all_matches else []
         else:
+            # Initialize all output columns with empty lists
             matches = {column_name: [] for column_name in self.output_cols}
+            
+            # Process tag pairs for matching columns
             for start_tag, end_tag, output_col in zip(
                 self.start_tags,
                 self.end_tags,

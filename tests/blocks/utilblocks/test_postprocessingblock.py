@@ -345,6 +345,27 @@ def test_parse_uneven_tags(postprocessing_block_multi_column):
     }
 
 
+def test_parse_more_output_cols_than_tags(postprocessing_block_multi_column):
+    """Test parsing when there are more output columns than tag pairs."""
+    # Configure with 3 output columns but only 2 tag pairs
+    postprocessing_block_multi_column.start_tags = ["<title>", "<content>"]
+    postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
+    postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
+    
+    text = """
+    <title>Header content</title>
+    <content>Main content</content>
+    """
+    
+    result = postprocessing_block_multi_column._parse(text)
+    # All output columns should be present, with footer having empty list
+    assert result == {
+        "title": ["Header content"],
+        "content": ["Main content"],
+        "footer": []
+    }
+
+
 def test_parse_with_whitespace(postprocessing_block_with_tags):
     """Test parsing with various whitespace patterns."""
     text = """
