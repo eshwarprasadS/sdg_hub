@@ -645,6 +645,10 @@ class PostProcessingBlock(Block):
         self.parsing_pattern = parsing_pattern
         self.parser_cleanup_tags = parser_cleanup_tags
 
+        # Validate custom parser configuration
+        if self.parser_name == "custom" and self.parsing_pattern is None:
+            raise ValueError("parsing_pattern must be provided when using custom parser")
+
         # For this block, we expect exactly one input column and one or more output columns
         if len(self.input_cols) == 0:
             raise ValueError("PostProcessingBlock expects at least one input column")

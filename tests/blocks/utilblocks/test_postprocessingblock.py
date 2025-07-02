@@ -267,6 +267,32 @@ def test_constructor_string_output_cols():
     assert block.output_cols == ["output"]
 
 
+def test_constructor_validation_custom_parser_no_pattern():
+    """Test constructor validation with custom parser but no parsing pattern."""
+    with pytest.raises(ValueError, match="parsing_pattern must be provided when using custom parser"):
+        PostProcessingBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            parser_name="custom",
+            parsing_pattern=None,
+        )
+
+
+def test_constructor_validation_custom_parser_with_pattern():
+    """Test constructor with custom parser and valid parsing pattern."""
+    block = PostProcessingBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parser_name="custom",
+        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
+    )
+    
+    assert block.parser_name == "custom"
+    assert block.parsing_pattern == r"Answer: (.*?)(?:\n|$)"
+
+
 def test_parse_uneven_tags(postprocessing_block_multi_column):
     """Test parsing with uneven start and end tags."""
     # Test with more start tags than end tags
