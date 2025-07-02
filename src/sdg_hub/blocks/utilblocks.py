@@ -728,7 +728,8 @@ class PostProcessingBlock(Block):
                 continue
             raw_output = sample[input_column]
             parsed_outputs = self._parse(raw_output)
-            max_length = max(len(value) for value in parsed_outputs.values())
-            for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                new_data.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+            if parsed_outputs and any(len(value) > 0 for value in parsed_outputs.values()):
+                max_length = max(len(value) for value in parsed_outputs.values())
+                for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
+                    new_data.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
         return Dataset.from_list(new_data)

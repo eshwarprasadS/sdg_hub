@@ -222,6 +222,37 @@ def test_generate_empty_dataset(postprocessing_block):
     assert len(result) == 0
 
 
+def test_generate_all_empty_parsed_outputs(postprocessing_block):
+    """Test generate functionality when all parsed outputs are empty lists."""
+    postprocessing_block.start_tags = ["<output>"]
+    postprocessing_block.end_tags = ["</output>"]
+    
+    data = [
+        {"raw_output": "Text without any tags"},
+        {"raw_output": "More text without tags"},
+    ]
+    dataset = Dataset.from_list(data)
+    
+    result = postprocessing_block.generate(dataset)
+    
+    # Should not raise ValueError and should return empty dataset
+    assert len(result) == 0
+
+
+def test_generate_all_empty_parsed_outputs_custom_parser(postprocessing_block_with_custom_parser):
+    """Test generate functionality with custom parser when all parsed outputs are empty."""
+    data = [
+        {"raw_output": "Question: What is the answer?\nNo answer provided"},
+        {"raw_output": "Another question without answer"},
+    ]
+    dataset = Dataset.from_list(data)
+    
+    result = postprocessing_block_with_custom_parser.generate(dataset)
+    
+    # Should not raise ValueError and should return empty dataset
+    assert len(result) == 0
+
+
 def test_constructor_validation_no_input_cols():
     """Test constructor validation with no input columns."""
     with pytest.raises(ValueError, match="PostProcessingBlock expects at least one input column"):
