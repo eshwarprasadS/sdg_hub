@@ -20,7 +20,6 @@ def postprocessing_block_with_custom_parser():
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
-        parser_name="custom",
         parsing_pattern=r"Answer: (.*?)(?:\n|$)",
         parser_cleanup_tags=["<br>", "</br>"],
     )
@@ -298,32 +297,6 @@ def test_constructor_string_output_cols():
     assert block.output_cols == ["output"]
 
 
-def test_constructor_validation_custom_parser_no_pattern():
-    """Test constructor validation with custom parser but no parsing pattern."""
-    with pytest.raises(ValueError, match="parsing_pattern must be provided when using custom parser"):
-        PostProcessingBlock(
-            block_name="test_block",
-            input_cols="raw_output",
-            output_cols=["output"],
-            parser_name="custom",
-            parsing_pattern=None,
-        )
-
-
-def test_constructor_validation_custom_parser_with_pattern():
-    """Test constructor with custom parser and valid parsing pattern."""
-    block = PostProcessingBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["output"],
-        parser_name="custom",
-        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
-    )
-    
-    assert block.parser_name == "custom"
-    assert block.parsing_pattern == r"Answer: (.*?)(?:\n|$)"
-
-
 def test_parse_uneven_tags(postprocessing_block_multi_column):
     """Test parsing with uneven start and end tags."""
     # Test with more start tags than end tags
@@ -379,4 +352,190 @@ def test_parse_with_whitespace(postprocessing_block_with_tags):
     result = postprocessing_block_with_tags._parse(text)
     assert result == {
         "output": ["Leading and trailing spaces", "Multiple\n    Lines"]
+    }
+
+
+def test_extract_matches_incomplete_tags(postprocessing_block):
+    """Test extraction with incomplete tag pairs."""
+    text = "START First text END START Second text"
+    result = postprocessing_block._extract_matches(text, "START", "END")
+    assert result == ["First text"]
+
+
+def test_extract_matches_cascading_tags(postprocessing_block):
+    """Test extraction with cascading start and end tags."""
+    text = "START1 START2 Nested text END2 END1"
+    result = postprocessing_block._extract_matches(text, "START1", "END1")
+    assert result == ["START2 Nested text END2"]
+
+    result = postprocessing_block._extract_matches(text, "START2", "END2")
+    assert result == ["Nested text"]
+
+
+def test_parse_mixed_tag_types(postprocessing_block_multi_column):
+    """Test parsing with mixed tag types (XML-style and custom markers)."""
+    postprocessing_block_multi_column.start_tags = ["<header>", "START"]
+    postprocessing_block_multi_column.end_tags = ["</header>", "END"]
+    postprocessing_block_multi_column.output_cols = ["header", "body"]
+
+    text = """
+    <header>XML Style Header</header>
+    START Custom Style Body END
+    <header>Another XML Header</header>
+    START Another Custom Body END
+    """
+
+    result = postprocessing_block_multi_column._parse(text)
+    assert result == {
+        "header": ["XML Style Header", "Another XML Header"],
+        "body": ["Custom Style Body", "Another Custom Body"],
+    }
+
+
+def test_parse_with_special_characters(postprocessing_block_with_tags):
+    """Test parsing with special characters in tags and content."""
+    postprocessing_block_with_tags.start_tags = ["<special>"]
+    postprocessing_block_with_tags.end_tags = ["</special>"]
+    postprocessing_block_with_tags.output_cols = ["special"]
+
+    text = """
+    <special>Content with &amp; entities</special>
+    <special>Content with <nested> tags</special>
+    <special>Content with "quotes" and 'apostrophes'</special>
+    """
+
+    result = postprocessing_block_with_tags._parse(text)
+    assert result == {
+        "special": [
+            "Content with &amp; entities",
+            "Content with <nested> tags",
+            "Content with \"quotes\" and 'apostrophes'",
+        ]
+    }
+
+
+def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
+    """Test parsing with mismatched numbers of start and end tags in configuration."""
+    # Test case 1: More start tags than end tags
+    postprocessing_block_multi_column.start_tags = ["<header>", "<content>", "<footer>"]
+    postprocessing_block_multi_column.end_tags = ["</header>", "</content>"]
+    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
+
+    text = """
+    <header>Header content</header>
+    <content>Main content</content>
+    <footer>Footer content</footer>
+    """
+
+    result = postprocessing_block_multi_column._parse(text)
+    assert result == {
+        "header": ["Header content"],
+        "content": ["Main content"],
+        "footer": []
+    }
+
+    # Test case 2: More end tags than start tags
+    postprocessing_block_multi_column.start_tags = ["<header>"]
+    postprocessing_block_multi_column.end_tags = ["</header>", "</content>", "</footer>"]
+    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
+
+    text = """
+    <header>Header content</header>
+    </content>
+    </footer>
+    """
+
+    result = postprocessing_block_multi_column._parse(text)
+    assert result == {
+        "header": ["Header content"],
+        "content": [],
+        "footer": []
+    }
+
+    # Test case 3: Empty tags list
+    postprocessing_block_multi_column.start_tags = []
+    postprocessing_block_multi_column.end_tags = []
+    postprocessing_block_multi_column.output_cols = ["text"]
+
+    text = "Some text without tags"
+
+    result = postprocessing_block_multi_column._parse(text)
+    assert result == {"text": []}
+
+
+def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):
+    """Test parsing with uneven or mismatched start and end tags - comprehensive test cases."""
+    postprocessing_block_multi_column.start_tags = ["<section>", "<subsection>"]
+    postprocessing_block_multi_column.end_tags = ["</section>", "</subsection>"]
+    postprocessing_block_multi_column.output_cols = ["section", "subsection"]
+
+    # Test cases with various uneven tag scenarios
+    test_cases = [
+        # Missing end tag - parser should not capture content without proper end tag
+        (
+            """
+        <section>First section
+        <subsection>First subsection</subsection>
+        """,
+            {
+                "section": [],  # No valid section content due to missing end tag
+                "subsection": ["First subsection"],
+            },
+        ),
+        # Extra end tag - parser should ignore extra end tag
+        (
+            """
+        <section>First section</section>
+        </section>
+        """,
+            {"section": ["First section"], "subsection": []},
+        ),
+        # Nested tags with missing outer end tag
+        (
+            """
+        <section>Outer content
+        <subsection>Inner content</subsection>
+        """,
+            {
+                "section": [],  # No valid section content due to missing end tag
+                "subsection": ["Inner content"],
+            },
+        ),
+        # Multiple start tags without end tags
+        (
+            """
+        <section>First section
+        <section>Second section
+        <subsection>First subsection</subsection>
+        """,
+            {
+                "section": [],  # No valid section content due to missing end tags
+                "subsection": ["First subsection"],
+            },
+        ),
+    ]
+
+    for text, expected in test_cases:
+        result = postprocessing_block_multi_column._parse(text)
+        assert result == expected, f"Failed for text: {text}"
+
+
+def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
+    """Test parsing with various whitespace patterns - comprehensive test."""
+    postprocessing_block_with_tags.start_tags = ["<text>"]
+    postprocessing_block_with_tags.end_tags = ["</text>"]
+    postprocessing_block_with_tags.output_cols = ["text"]
+
+    text = """
+    <text>  Leading and trailing spaces  </text>
+    <text>
+    Multiple
+    Lines
+    </text>
+    <text>\tTabbed content\t</text>
+    """
+
+    result = postprocessing_block_with_tags._parse(text)
+    assert result == {
+        "text": ["Leading and trailing spaces", "Multiple\n    Lines", "Tabbed content"]
     } 
