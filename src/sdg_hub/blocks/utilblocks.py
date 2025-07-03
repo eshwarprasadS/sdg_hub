@@ -617,8 +617,6 @@ class PostProcessingBlock(Block):
         List of start tags for tag-based parsing, by default [].
     end_tags : List[str], optional
         List of end tags for tag-based parsing, by default [].
-    parser_name : Optional[str], optional
-        Name of the parser to use ("custom" for regex), by default None.
     parsing_pattern : Optional[str], optional
         Regex pattern for custom parsing, by default None.
     parser_cleanup_tags : Optional[List[str]], optional
@@ -632,7 +630,6 @@ class PostProcessingBlock(Block):
         output_cols: Union[str, List[str]],
         start_tags: List[str] = [],
         end_tags: List[str] = [],
-        parser_name: Optional[str] = None,
         parsing_pattern: Optional[str] = None,
         parser_cleanup_tags: Optional[List[str]] = None,
     ) -> None:
@@ -641,18 +638,10 @@ class PostProcessingBlock(Block):
         self.output_cols = [output_cols] if isinstance(output_cols, str) else output_cols
         self.start_tags = start_tags
         self.end_tags = end_tags
-        self.parser_name = parser_name
         self.parsing_pattern = parsing_pattern
         self.parser_cleanup_tags = parser_cleanup_tags
-        self._validate()
-
-    def _validate(self) -> None:
-        """Validate the block configuration."""
-        # Validate custom parser configuration
-        if self.parser_name == "custom" and self.parsing_pattern is None:
-            raise ValueError("parsing_pattern must be provided when using custom parser")
-
-        # For this block, we expect exactly one input column and one or more output columns
+        
+        # Validate the block configuration
         if len(self.input_cols) == 0:
             raise ValueError("PostProcessingBlock expects at least one input column")
         elif len(self.input_cols) > 1:
@@ -683,7 +672,7 @@ class PostProcessingBlock(Block):
     def _parse(self, generated_string: str) -> dict:
         matches = {}
 
-        if self.parser_name is not None and self.parser_name == "custom":
+        if self.parsing_pattern is not None:
             pattern = re.compile(self.parsing_pattern, re.DOTALL)
             all_matches = pattern.findall(generated_string)
             matches = {column_name: [] for column_name in self.output_cols}
@@ -719,7 +708,7 @@ class PostProcessingBlock(Block):
                 )
         return matches
 
-    def generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> Dataset:
+    def generate(self, samples: Dataset) -> Dataset:
         logger.debug("Parsing outputs for {} samples".format(len(samples)))
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")
