@@ -6,8 +6,8 @@ This module provides blocks for handling LLM chat completions, including:
 """
 
 # Standard
-from typing import List, Optional, Union
 import re
+from typing import List, Optional, Union
 
 # Third Party
 from datasets import Dataset
@@ -36,13 +36,13 @@ class StringParserBlock(Block):
     output_cols : Union[str, List[str]]
         Output column name(s) for parsed results.
     start_tags : List[str], optional
-        List of start tags for tag-based parsing, by default [].
+        List of start tags for tag-based parsing. Default is [].
     end_tags : List[str], optional
-        List of end tags for tag-based parsing, by default [].
+        List of end tags for tag-based parsing. Default is [].
     parsing_pattern : Optional[str], optional
-        Regex pattern for custom parsing, by default None.
+        Regex pattern for custom parsing. Default is None.
     parser_cleanup_tags : Optional[List[str]], optional
-        List of tags to clean from parsed output, by default None.
+        List of tags to clean from parsed output. Default is None.
     """
 
     def __init__(
@@ -50,8 +50,8 @@ class StringParserBlock(Block):
         block_name: str,
         input_cols: Union[str, List[str]],
         output_cols: Union[str, List[str]],
-        start_tags: List[str] = [],
-        end_tags: List[str] = [],
+        start_tags: Optional[List[str]] = None,
+        end_tags: Optional[List[str]] = None,
         parsing_pattern: Optional[str] = None,
         parser_cleanup_tags: Optional[List[str]] = None,
     ) -> None:
@@ -60,8 +60,8 @@ class StringParserBlock(Block):
         self.output_cols = (
             [output_cols] if isinstance(output_cols, str) else output_cols
         )
-        self.start_tags = start_tags
-        self.end_tags = end_tags
+        self.start_tags = start_tags or []
+        self.end_tags = end_tags or []
         self.parsing_pattern = parsing_pattern
         self.parser_cleanup_tags = parser_cleanup_tags
 
@@ -94,43 +94,62 @@ class StringParserBlock(Block):
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
     def _parse(self, generated_string: str) -> dict[str, list[str]]:
-        matches: dict[str, list[str]] = {}
-
         if self.parsing_pattern is not None:
-            pattern = re.compile(self.parsing_pattern, re.DOTALL)
-            all_matches = pattern.findall(generated_string)
-            matches = {column_name: [] for column_name in self.output_cols}
-            if all_matches and isinstance(all_matches[0], tuple):
-                for match in all_matches:
-                    for column_name, value in zip(self.output_cols, match):
-                        value = value.strip()
-                        if self.parser_cleanup_tags:
-                            for clean_tag in self.parser_cleanup_tags:
-                                value = value.replace(clean_tag, "")
-                        matches[column_name].append(value)
-            else:
-                cleaned_matches = []
-                for match in all_matches:
-                    value = match.strip()
-                    if self.parser_cleanup_tags:
-                        for clean_tag in self.parser_cleanup_tags:
-                            value = value.replace(clean_tag, "")
-                    cleaned_matches.append(value)
-                matches[self.output_cols[0]] = cleaned_matches if all_matches else []
-        else:
-            # Initialize all output columns with empty lists
-            matches = {column_name: [] for column_name in self.output_cols}
+            return self._parse_with_regex(generated_string)
+        return self._parse_with_tags(generated_string)
 
-            # Process tag pairs for matching columns
-            for start_tag, end_tag, output_col in zip(
-                self.start_tags,
-                self.end_tags,
-                self.output_cols,
-            ):
-                matches[output_col] = self._extract_matches(
-                    generated_string, start_tag, end_tag
-                )
+    def _parse_with_regex(self, generated_string: str) -> dict[str, list[str]]:
+        """Parse using regex pattern."""
+        if self.parsing_pattern is None:
+            raise ValueError("parsing_pattern is required for regex parsing")
+        pattern = re.compile(self.parsing_pattern, re.DOTALL)
+        all_matches = pattern.findall(generated_string)
+        matches: dict[str, list[str]] = {
+            column_name: [] for column_name in self.output_cols
+        }
+
+        if all_matches and isinstance(all_matches[0], tuple):
+            return self._process_tuple_matches(all_matches, matches)
+        return self._process_single_matches(all_matches, matches)
+
+    def _parse_with_tags(self, generated_string: str) -> dict[str, list[str]]:
+        """Parse using start/end tags."""
+        matches: dict[str, list[str]] = {
+            column_name: [] for column_name in self.output_cols
+        }
+
+        for start_tag, end_tag, output_col in zip(
+            self.start_tags, self.end_tags, self.output_cols
+        ):
+            matches[output_col] = self._extract_matches(
+                generated_string, start_tag, end_tag
+            )
         return matches
+
+    def _process_tuple_matches(
+        self, all_matches: list, matches: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
+        """Process regex matches that are tuples."""
+        for match in all_matches:
+            for column_name, value in zip(self.output_cols, match):
+                value = self._clean_value(value.strip())
+                matches[column_name].append(value)
+        return matches
+
+    def _process_single_matches(
+        self, all_matches: list, matches: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
+        """Process regex matches that are single values."""
+        cleaned_matches = [self._clean_value(match.strip()) for match in all_matches]
+        matches[self.output_cols[0]] = cleaned_matches
+        return matches
+
+    def _clean_value(self, value: str) -> str:
+        """Clean value by removing cleanup tags."""
+        if self.parser_cleanup_tags:
+            for clean_tag in self.parser_cleanup_tags:
+                value = value.replace(clean_tag, "")
+        return value
 
     def _generate(self, sample: dict) -> List[dict]:
         input_column = self.input_cols[0]
@@ -155,7 +174,7 @@ class StringParserBlock(Block):
         return result
 
     def generate(self, samples: Dataset) -> Dataset:
-        logger.debug("Parsing outputs for {} samples".format(len(samples)))
+        logger.debug(f"Parsing outputs for {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")
             return Dataset.from_list([])
