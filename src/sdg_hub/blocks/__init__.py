@@ -20,7 +20,9 @@ from .utilblocks import (
     SetToMajorityValue,
     FilterByValueBlock,
     IterBlock,
-    PostProcessingBlock,
+)
+from .llm_utils import (
+    StringParserBlock,
 )
 from ..registry import BlockRegistry
 
@@ -30,7 +32,7 @@ __all__ = [
     "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
-    "PostProcessingBlock",
+    "StringParserBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
     "CombineColumnsBlock",

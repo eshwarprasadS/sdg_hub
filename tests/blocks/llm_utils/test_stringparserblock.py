@@ -1,12 +1,15 @@
-import pytest
+# Third Party
 from datasets import Dataset
-from sdg_hub.blocks.utilblocks import PostProcessingBlock
+import pytest
+
+# First Party
+from sdg_hub.blocks.llm_utils import StringParserBlock
 
 
 @pytest.fixture
 def postprocessing_block():
-    """Create a basic PostProcessingBlock instance for testing."""
-    return PostProcessingBlock(
+    """Create a basic StringParserBlock instance for testing."""
+    return StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -15,8 +18,8 @@ def postprocessing_block():
 
 @pytest.fixture
 def postprocessing_block_with_custom_parser():
-    """Create a PostProcessingBlock instance with custom parser configuration."""
-    return PostProcessingBlock(
+    """Create a StringParserBlock instance with custom parser configuration."""
+    return StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -27,8 +30,8 @@ def postprocessing_block_with_custom_parser():
 
 @pytest.fixture
 def postprocessing_block_with_tags():
-    """Create a PostProcessingBlock instance with tag-based parsing configuration."""
-    return PostProcessingBlock(
+    """Create a StringParserBlock instance with tag-based parsing configuration."""
+    return StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -39,8 +42,8 @@ def postprocessing_block_with_tags():
 
 @pytest.fixture
 def postprocessing_block_multi_column():
-    """Create a PostProcessingBlock instance with multiple output columns."""
-    return PostProcessingBlock(
+    """Create a StringParserBlock instance with multiple output columns."""
+    return StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["title", "content"],
@@ -150,15 +153,15 @@ def test_generate_basic_functionality(postprocessing_block):
     """Test basic generate functionality with tag-based parsing."""
     postprocessing_block.start_tags = ["<output>"]
     postprocessing_block.end_tags = ["</output>"]
-    
+
     data = [
         {"raw_output": "Text <output>Result 1</output> more text"},
         {"raw_output": "Text <output>Result 2</output> more text"},
     ]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block.generate(dataset)
-    
+
     assert len(result) == 2
     assert result[0]["output"] == "Result 1"
     assert result[1]["output"] == "Result 2"
@@ -171,9 +174,9 @@ def test_generate_custom_regex(postprocessing_block_with_custom_parser):
         {"raw_output": "Question: Q2\nAnswer: A2"},
     ]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block_with_custom_parser.generate(dataset)
-    
+
     assert len(result) == 2
     assert result[0]["output"] == "A1"
     assert result[1]["output"] == "A2"
@@ -192,9 +195,9 @@ def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
         }
     ]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block_multi_column.generate(dataset)
-    
+
     assert len(result) == 2
     assert result[0]["title"] == "Title 1"
     assert result[0]["content"] == "Content 1"
@@ -206,18 +209,18 @@ def test_generate_missing_input_column(postprocessing_block):
     """Test generate functionality when input column is missing."""
     data = [{"other_column": "some text"}]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block.generate(dataset)
-    
+
     assert len(result) == 0
 
 
 def test_generate_empty_dataset(postprocessing_block):
     """Test generate functionality with empty dataset."""
     dataset = Dataset.from_list([])
-    
+
     result = postprocessing_block.generate(dataset)
-    
+
     assert len(result) == 0
 
 
@@ -225,37 +228,41 @@ def test_generate_all_empty_parsed_outputs(postprocessing_block):
     """Test generate functionality when all parsed outputs are empty lists."""
     postprocessing_block.start_tags = ["<output>"]
     postprocessing_block.end_tags = ["</output>"]
-    
+
     data = [
         {"raw_output": "Text without any tags"},
         {"raw_output": "More text without tags"},
     ]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block.generate(dataset)
-    
+
     # Should not raise ValueError and should return empty dataset
     assert len(result) == 0
 
 
-def test_generate_all_empty_parsed_outputs_custom_parser(postprocessing_block_with_custom_parser):
+def test_generate_all_empty_parsed_outputs_custom_parser(
+    postprocessing_block_with_custom_parser,
+):
     """Test generate functionality with custom parser when all parsed outputs are empty."""
     data = [
         {"raw_output": "Question: What is the answer?\nNo answer provided"},
         {"raw_output": "Another question without answer"},
     ]
     dataset = Dataset.from_list(data)
-    
+
     result = postprocessing_block_with_custom_parser.generate(dataset)
-    
+
     # Should not raise ValueError and should return empty dataset
     assert len(result) == 0
 
 
 def test_constructor_validation_no_input_cols():
     """Test constructor validation with no input columns."""
-    with pytest.raises(ValueError, match="PostProcessingBlock expects at least one input column"):
-        PostProcessingBlock(
+    with pytest.raises(
+        ValueError, match="StringParserBlock expects at least one input column"
+    ):
+        StringParserBlock(
             block_name="test_block",
             input_cols=[],
             output_cols=["output"],
@@ -265,35 +272,35 @@ def test_constructor_validation_no_input_cols():
 def test_constructor_validation_multiple_input_cols():
     """Test constructor validation with multiple input columns (should warn but not error)."""
     # This should not raise an error, just log a warning
-    block = PostProcessingBlock(
+    block = StringParserBlock(
         block_name="test_block",
         input_cols=["col1", "col2"],
         output_cols=["output"],
     )
-    
+
     assert len(block.input_cols) == 2
     assert block.input_cols[0] == "col1"
 
 
 def test_constructor_string_input_cols():
     """Test constructor with string input_cols (should be converted to list)."""
-    block = PostProcessingBlock(
+    block = StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
     )
-    
+
     assert block.input_cols == ["raw_output"]
 
 
 def test_constructor_string_output_cols():
     """Test constructor with string output_cols (should be converted to list)."""
-    block = PostProcessingBlock(
+    block = StringParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols="output",
     )
-    
+
     assert block.output_cols == ["output"]
 
 
@@ -303,18 +310,18 @@ def test_parse_uneven_tags(postprocessing_block_multi_column):
     postprocessing_block_multi_column.start_tags = ["<title>", "<content>", "<footer>"]
     postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
     postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
-    
+
     text = """
     <title>Header content</title>
     <content>Main content</content>
     <footer>Footer content</footer>
     """
-    
+
     result = postprocessing_block_multi_column._parse(text)
     assert result == {
         "title": ["Header content"],
         "content": ["Main content"],
-        "footer": []
+        "footer": [],
     }
 
 
@@ -324,18 +331,18 @@ def test_parse_more_output_cols_than_tags(postprocessing_block_multi_column):
     postprocessing_block_multi_column.start_tags = ["<title>", "<content>"]
     postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
     postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
-    
+
     text = """
     <title>Header content</title>
     <content>Main content</content>
     """
-    
+
     result = postprocessing_block_multi_column._parse(text)
     # All output columns should be present, with footer having empty list
     assert result == {
         "title": ["Header content"],
         "content": ["Main content"],
-        "footer": []
+        "footer": [],
     }
 
 
@@ -348,11 +355,9 @@ def test_parse_with_whitespace(postprocessing_block_with_tags):
     Lines
     </output>
     """
-    
+
     result = postprocessing_block_with_tags._parse(text)
-    assert result == {
-        "output": ["Leading and trailing spaces", "Multiple\n    Lines"]
-    }
+    assert result == {"output": ["Leading and trailing spaces", "Multiple\n    Lines"]}
 
 
 def test_extract_matches_incomplete_tags(postprocessing_block):
@@ -431,12 +436,16 @@ def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     assert result == {
         "header": ["Header content"],
         "content": ["Main content"],
-        "footer": []
+        "footer": [],
     }
 
     # Test case 2: More end tags than start tags
     postprocessing_block_multi_column.start_tags = ["<header>"]
-    postprocessing_block_multi_column.end_tags = ["</header>", "</content>", "</footer>"]
+    postprocessing_block_multi_column.end_tags = [
+        "</header>",
+        "</content>",
+        "</footer>",
+    ]
     postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
 
     text = """
@@ -446,11 +455,7 @@ def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     """
 
     result = postprocessing_block_multi_column._parse(text)
-    assert result == {
-        "header": ["Header content"],
-        "content": [],
-        "footer": []
-    }
+    assert result == {"header": ["Header content"], "content": [], "footer": []}
 
     # Test case 3: Empty tags list
     postprocessing_block_multi_column.start_tags = []
@@ -538,4 +543,4 @@ def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     result = postprocessing_block_with_tags._parse(text)
     assert result == {
         "text": ["Leading and trailing spaces", "Multiple\n    Lines", "Tabbed content"]
-    } 
+    }
