@@ -201,3 +201,37 @@ def test_filter_block_multiple_input_cols():
     )
     assert block.input_cols == ["score", "metadata"]
     assert block.output_cols == []
+
+
+def test_filter_block_with_contains():
+    """Test filtering with operator.contains."""
+    block = FilterByValueBlock(
+        block_name="test_contains",
+        filter_column="text",
+        filter_value="world",
+        operation=operator.contains,
+    )
+    dataset = Dataset.from_dict(
+        {"text": ["hello world", "goodbye moon", "hello there", "world peace"]},
+        features=Features({"text": Value("string")}),
+    )
+    filtered_dataset = block(dataset)
+    assert len(filtered_dataset) == 2
+    assert filtered_dataset["text"] == ["hello world", "world peace"]
+
+
+def test_filter_block_with_contains_multiple_values():
+    """Test filtering with operator.contains and multiple filter values."""
+    block = FilterByValueBlock(
+        block_name="test_contains_multi",
+        filter_column="text",
+        filter_value=["world", "moon"],
+        operation=operator.contains,
+    )
+    dataset = Dataset.from_dict(
+        {"text": ["hello world", "goodbye moon", "hello there", "world peace", "moon landing"]},
+        features=Features({"text": Value("string")}),
+    )
+    filtered_dataset = block(dataset)
+    assert len(filtered_dataset) == 4
+    assert filtered_dataset["text"] == ["hello world", "goodbye moon", "world peace", "moon landing"]

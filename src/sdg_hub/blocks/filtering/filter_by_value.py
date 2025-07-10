@@ -142,22 +142,26 @@ class FilterByValueBlock(BaseBlock):
                 num_proc=self.num_procs,
             )
 
-        if self.operation == operator.contains:
-            samples = samples.filter(
-                lambda x: self.operation(self.value, x[self.column_name]),
-                num_proc=self.num_procs,
-            )
-
         samples = samples.filter(
             lambda x: x[self.column_name] is not None,
             num_proc=self.num_procs,
         )
 
-        samples = samples.filter(
-            lambda x: any(
-                self.operation(x[self.column_name], value) for value in self.value
-            ),
-            num_proc=self.num_procs,
-        )
+        if self.operation == operator.contains:
+            # For contains, check if any filter value is contained in the column value
+            samples = samples.filter(
+                lambda x: any(
+                    self.operation(x[self.column_name], value) for value in self.value
+                ),
+                num_proc=self.num_procs,
+            )
+        else:
+            # For other operations, standard comparison
+            samples = samples.filter(
+                lambda x: any(
+                    self.operation(x[self.column_name], value) for value in self.value
+                ),
+                num_proc=self.num_procs,
+            )
 
         return samples
