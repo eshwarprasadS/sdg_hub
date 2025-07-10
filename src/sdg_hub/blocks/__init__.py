@@ -7,6 +7,7 @@ This package provides various block implementations for data generation, process
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
+from .filtering import FilterByValueBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -15,7 +16,6 @@ from .utilblocks import (
     DuplicateColumns,
     RenameColumns,
     SetToMajorityValue,
-    FilterByValueBlock,
     IterBlock,
 )
 from ..registry import BlockRegistry

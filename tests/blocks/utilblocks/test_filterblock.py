@@ -2,13 +2,14 @@
 
 # Standard
 import operator
-import pytest
 
 # Third Party
 from datasets import Dataset, Features, Value
+import pytest
 
 # First Party
 from sdg_hub.blocks import FilterByValueBlock
+from sdg_hub.utils.error_handling import EmptyDatasetError, MissingColumnError
 
 
 @pytest.fixture
@@ -73,7 +74,7 @@ def test_filter_block_with_invalid_operation():
 
 def test_filter_block_with_mixed_types(filter_block, sample_dataset, caplog):
     """Test filtering with mixed data types."""
-    filtered_dataset = filter_block.generate(sample_dataset)
+    filtered_dataset = filter_block(sample_dataset)
     assert len(filtered_dataset) == 1
     assert filtered_dataset["age"] == [30]
     assert "Error converting dtype" in caplog.text
@@ -81,7 +82,7 @@ def test_filter_block_with_mixed_types(filter_block, sample_dataset, caplog):
 
 def test_filter_block_with_list_values(filter_block_with_list, sample_dataset, caplog):
     """Test filtering with multiple values."""
-    filtered_dataset = filter_block_with_list.generate(sample_dataset)
+    filtered_dataset = filter_block_with_list(sample_dataset)
     assert len(filtered_dataset) == 2
     assert filtered_dataset["age"] == [30, 35]
     assert "Error converting dtype" in caplog.text
@@ -100,7 +101,7 @@ def test_filter_block_with_greater_than():
         {"age": ["25", "30", "35", "40", "45"]},
         features=Features({"age": Value("string")}),
     )
-    filtered_dataset = block.generate(dataset)
+    filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 3
     assert filtered_dataset["age"] == [35, 40, 45]
 
@@ -118,7 +119,7 @@ def test_filter_block_with_less_than():
         {"age": ["25", "30", "35", "40", "45"]},
         features=Features({"age": Value("string")}),
     )
-    filtered_dataset = block.generate(dataset)
+    filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
     assert filtered_dataset["age"] == [25, 30]
 
@@ -136,8 +137,8 @@ def test_filter_block_with_invalid_column():
         {"age": ["25", "30", "35"]},
         features=Features({"age": Value("string")}),
     )
-    with pytest.raises(KeyError):
-        block.generate(dataset)
+    with pytest.raises(MissingColumnError):
+        block(dataset)  # Use __call__ method to trigger BaseBlock validation
 
 
 def test_filter_block_with_empty_dataset():
@@ -153,5 +154,50 @@ def test_filter_block_with_empty_dataset():
         {"age": []},
         features=Features({"age": Value("string")}),
     )
-    filtered_dataset = block.generate(dataset)
-    assert len(filtered_dataset) == 0
+    # BaseBlock should raise EmptyDatasetError for empty datasets
+    with pytest.raises(EmptyDatasetError):
+        block(dataset)
+
+
+def test_filter_block_with_explicit_input_output_cols():
+    """Test FilterByValueBlock with explicit BaseBlock-style constructor."""
+    block = FilterByValueBlock(
+        block_name="test_baseblock_style",
+        filter_column="age",
+        filter_value=30,
+        operation=operator.eq,
+        convert_dtype=int,
+        input_cols=["age"],
+        output_cols=[],
+    )
+    assert block.input_cols == ["age"]
+    assert block.output_cols == []
+    assert block.column_name == "age"
+    assert block.value == [30]
+
+
+def test_filter_block_input_cols_inference():
+    """Test that input_cols is correctly inferred from filter_column when not provided."""
+    block = FilterByValueBlock(
+        block_name="test_inference",
+        filter_column="score",
+        filter_value=2.0,
+        operation=operator.ge,
+        convert_dtype=float,
+    )
+    assert block.input_cols == ["score"]
+    assert block.output_cols == []
+
+
+def test_filter_block_multiple_input_cols():
+    """Test FilterByValueBlock with multiple input columns specified."""
+    block = FilterByValueBlock(
+        block_name="test_multi_input",
+        filter_column="score",
+        filter_value=2.0,
+        operation=operator.ge,
+        convert_dtype=float,
+        input_cols=["score", "metadata"],  # Additional input column for validation
+    )
+    assert block.input_cols == ["score", "metadata"]
+    assert block.output_cols == []
