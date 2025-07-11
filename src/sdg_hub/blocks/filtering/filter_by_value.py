@@ -120,19 +120,11 @@ class FilterByValueBlock(BaseBlock):
             lambda x: x[self.column_name] is not None,
         )
 
-        if self.operation == operator.contains:
-            # For contains, check if any filter value is contained in the column value
-            samples = samples.filter(
-                lambda x: any(
-                    self.operation(x[self.column_name], value) for value in self.value
-                )
+        # Apply filter operation
+        samples = samples.filter(
+            lambda x: any(
+                self.operation(x[self.column_name], value) for value in self.value
             )
-        else:
-            # For other operations, standard comparison
-            samples = samples.filter(
-                lambda x: any(
-                    self.operation(x[self.column_name], value) for value in self.value
-                )
-            )
+        )
 
         return samples
