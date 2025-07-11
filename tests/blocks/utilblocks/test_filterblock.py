@@ -26,7 +26,7 @@ def filter_block():
     """Create a basic FilterByValueBlock instance."""
     return FilterByValueBlock(
         block_name="test_filter",
-        filter_column="age",
+        input_cols="age",
         filter_value=30,
         operation=operator.eq,
         convert_dtype=int,
@@ -38,7 +38,7 @@ def filter_block_with_list():
     """Create a FilterByValueBlock instance that filters against a list of values."""
     return FilterByValueBlock(
         block_name="test_filter_list",
-        filter_column="age",
+        input_cols="age",
         filter_value=[30, 35],
         operation=operator.eq,
         convert_dtype=int,
@@ -49,7 +49,7 @@ def test_filter_block_initialization():
     """Test FilterByValueBlock initialization."""
     block = FilterByValueBlock(
         block_name="test_init",
-        filter_column="age",
+        input_cols="age",
         filter_value=30,
         operation=operator.eq,
         convert_dtype=int,
@@ -65,7 +65,7 @@ def test_filter_block_with_invalid_operation():
     with pytest.raises(ValueError, match="Operation must be from operator module"):
         FilterByValueBlock(
             block_name="test_invalid_op",
-            filter_column="age",
+            input_cols="age",
             filter_value=30,
             operation=lambda x, y: x == y,  # Invalid operation
             convert_dtype=int,
@@ -92,7 +92,7 @@ def test_filter_block_with_greater_than():
     """Test filtering with greater than operation."""
     block = FilterByValueBlock(
         block_name="test_gt",
-        filter_column="age",
+        input_cols="age",
         filter_value=30,
         operation=operator.gt,
         convert_dtype=int,
@@ -110,7 +110,7 @@ def test_filter_block_with_less_than():
     """Test filtering with less than operation."""
     block = FilterByValueBlock(
         block_name="test_lt",
-        filter_column="age",
+        input_cols="age",
         filter_value=35,
         operation=operator.lt,
         convert_dtype=int,
@@ -128,7 +128,7 @@ def test_filter_block_with_invalid_column():
     """Test filtering with non-existent column."""
     block = FilterByValueBlock(
         block_name="test_invalid_col",
-        filter_column="nonexistent",
+        input_cols="nonexistent",
         filter_value=30,
         operation=operator.eq,
         convert_dtype=int,
@@ -145,7 +145,7 @@ def test_filter_block_with_empty_dataset():
     """Test filtering with an empty dataset."""
     block = FilterByValueBlock(
         block_name="test_empty",
-        filter_column="age",
+        input_cols="age",
         filter_value=30,
         operation=operator.eq,
         convert_dtype=int,
@@ -159,28 +159,26 @@ def test_filter_block_with_empty_dataset():
         block(dataset)
 
 
-def test_filter_block_with_explicit_input_output_cols():
-    """Test FilterByValueBlock with explicit BaseBlock-style constructor."""
+def test_filter_block_with_multiple_input_cols():
+    """Test FilterByValueBlock with multiple input columns specified."""
     block = FilterByValueBlock(
-        block_name="test_baseblock_style",
-        filter_column="age",
+        block_name="test_multi_input",
+        input_cols=["age", "metadata"],  # Filter column is first
         filter_value=30,
         operation=operator.eq,
         convert_dtype=int,
-        input_cols=["age"],
-        output_cols=[],
     )
-    assert block.input_cols == ["age"]
+    assert block.input_cols == ["age", "metadata"]
     assert block.output_cols == []
-    assert block.column_name == "age"
+    assert block.column_name == "age"  # First column is filter column
     assert block.value == [30]
 
 
-def test_filter_block_input_cols_inference():
-    """Test that input_cols is correctly inferred from filter_column when not provided."""
+def test_filter_block_single_input_col():
+    """Test that input_cols works with single column specified."""
     block = FilterByValueBlock(
-        block_name="test_inference",
-        filter_column="score",
+        block_name="test_single",
+        input_cols="score",
         filter_value=2.0,
         operation=operator.ge,
         convert_dtype=float,
@@ -189,25 +187,23 @@ def test_filter_block_input_cols_inference():
     assert block.output_cols == []
 
 
-def test_filter_block_multiple_input_cols():
-    """Test FilterByValueBlock with multiple input columns specified."""
-    block = FilterByValueBlock(
-        block_name="test_multi_input",
-        filter_column="score",
-        filter_value=2.0,
-        operation=operator.ge,
-        convert_dtype=float,
-        input_cols=["score", "metadata"],  # Additional input column for validation
-    )
-    assert block.input_cols == ["score", "metadata"]
-    assert block.output_cols == []
+def test_filter_block_empty_input_cols():
+    """Test FilterByValueBlock raises error with empty input columns."""
+    with pytest.raises(ValueError, match="requires at least one input column"):
+        FilterByValueBlock(
+            block_name="test_empty_input",
+            input_cols=[],
+            filter_value=2.0,
+            operation=operator.ge,
+            convert_dtype=float,
+        )
 
 
 def test_filter_block_with_contains():
     """Test filtering with operator.contains."""
     block = FilterByValueBlock(
         block_name="test_contains",
-        filter_column="text",
+        input_cols="text",
         filter_value="world",
         operation=operator.contains,
     )
@@ -224,7 +220,7 @@ def test_filter_block_with_contains_multiple_values():
     """Test filtering with operator.contains and multiple filter values."""
     block = FilterByValueBlock(
         block_name="test_contains_multi",
-        filter_column="text",
+        input_cols="text",
         filter_value=["world", "moon"],
         operation=operator.contains,
     )

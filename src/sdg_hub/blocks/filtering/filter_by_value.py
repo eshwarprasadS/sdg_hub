@@ -31,8 +31,8 @@ class FilterByValueBlock(BaseBlock):
     ----------
     block_name : str
         Name of the block.
-    filter_column : str
-        The name of the column in the dataset to apply the filter on.
+    input_cols : Union[str, List[str]]
+        Input column name(s). The first column will be used for filtering.
     filter_value : Union[Any, List[Any]]
         The value(s) to filter by.
     operation : Callable[[Any, Any], bool]
@@ -41,10 +41,6 @@ class FilterByValueBlock(BaseBlock):
     convert_dtype : Optional[Union[Type[float], Type[int]]], optional
         Type to convert the filter column to. Can be either float or int.
         If None, no conversion is performed.
-    input_cols : Optional[Union[str, List[str]]], optional
-        Input column names. If None, defaults to [filter_column].
-    output_cols : Optional[Union[str, List[str]]], optional
-        Output column names. Filtering blocks don't create new columns, so this defaults to [].
     **batch_kwargs : Dict[str, Any]
         Additional kwargs for batch processing.
 
@@ -57,36 +53,24 @@ class FilterByValueBlock(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        filter_column: str,
+        input_cols: Union[str, List[str]],
         filter_value: Union[Any, List[Any]],
         operation: Callable[[Any, Any], bool],
         convert_dtype: Optional[Union[Type[float], Type[int]]] = None,
-        input_cols: Optional[Union[str, List[str]]] = None,
-        output_cols: Optional[Union[str, List[str]]] = None,
         **batch_kwargs: Dict[str, Any],
     ) -> None:
         """Initialize a new FilterByValueBlock instance."""
-        # For backward compatibility, infer input_cols from filter_column if not provided
-        if input_cols is None:
-            input_cols = [filter_column]
-        else:
-            # Ensure filter_column is always included in input_cols for validation
-            if isinstance(input_cols, str):
-                input_cols = [input_cols]
-            if filter_column not in input_cols:
-                input_cols = list(input_cols) + [filter_column]
-        
-        # Filtering doesn't create new columns, so output_cols defaults to None
-        if output_cols is None:
-            output_cols = []
-            
-        # Initialize BaseBlock with explicit column specifications
+        # Initialize BaseBlock - filtering doesn't create new columns, so output_cols=None
         super().__init__(
             block_name=block_name,
             input_cols=input_cols,
-            output_cols=output_cols,
+            output_cols=None,
             **batch_kwargs
         )
+        
+        # Validate that we have at least one input column
+        if len(self.input_cols) == 0:
+            raise ValueError("FilterByValueBlock requires at least one input column")
         
         # Validate that operation is from operator module
         if operation.__module__ != "_operator":
@@ -94,7 +78,7 @@ class FilterByValueBlock(BaseBlock):
             raise ValueError("Operation must be from operator module")
 
         self.value = filter_value if isinstance(filter_value, list) else [filter_value]
-        self.column_name = filter_column
+        self.column_name = self.input_cols[0]  # Use first input column for filtering
         self.operation = operation
         self.convert_dtype = convert_dtype
         self.num_procs = batch_kwargs.get("num_procs", 1)
